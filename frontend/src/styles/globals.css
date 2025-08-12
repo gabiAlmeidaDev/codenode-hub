@@ -1,0 +1,30 @@
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root { color-scheme: dark; }
+html, body, #root { height: 100%; }
+
+body {
+  @apply bg-[hsl(222,47%,6%)] text-[hsl(210,15%,92%)];
+  background-image: radial-gradient(1200px 600px at 10% -10%, hsla(280,80%,25%,0.35), transparent 60%),
+                    radial-gradient(1000px 500px at 110% -10%, hsla(200,90%,25%,0.28), transparent 60%);
+  background-attachment: fixed;
+}
+
+.card {
+  @apply bg-[hsl(222,37%,10%)] border border-[hsl(220,12%,18%)] rounded-2xl shadow-glow;
+  backdrop-filter: blur(6px);
+}
+
+.btn {
+  @apply inline-flex items-center gap-2 rounded-2xl px-4 py-2 border border-[hsl(220,12%,18%)] transition-transform duration-200 ease-gentle;
+  background: linear-gradient(135deg, hsl(222 37% 10%), hsl(222 37% 12%));
+}
+.btn:hover { transform: scale(1.02); box-shadow: 0 8px 30px rgba(120,119,198,0.25); }
+.btn-primary {
+  background-image: linear-gradient(120deg, hsl(280 80% 60%), hsl(200 90% 55%));
+  color: black;
+  @apply font-semibold;
+}
