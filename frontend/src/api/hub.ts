@@ -108,4 +108,13 @@ export async function updateLead(
     const { error } = await supabase.from("hub_lead").update(patch).eq("id", id);
     if (error) throw error;
   }
+
+  export async function reorderLeadsInStage(stage: Stage, orderedIds: string[]) {
+    // salva índices 0..n em order_index
+    for (let i = 0; i < orderedIds.length; i++) {
+      const id = orderedIds[i];
+      const { error } = await supabase.from("hub_lead").update({ order_index: i }).eq("id", id);
+      if (error) throw error;
+    }
+  }
   

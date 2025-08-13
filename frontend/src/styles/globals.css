@@ -28,3 +28,22 @@ body {
   color: black;
   @apply font-semibold;
 }
+
+/* cmdk defaults */
+[cmdk-root] { outline: none; }
+[cmdk-dialog] { outline: none; }
+[cmdk-group] [cmdk-group-heading] { color: hsl(215,12%,65%); }
+
+[cmdk-item] {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 12px;
+  font-size: 14px;
+  color: white;
+  cursor: pointer;
+}
+[cmdk-item][data-selected="true"],
+[cmdk-item]:hover {
+  background: hsl(222, 37%, 14%);
+}
