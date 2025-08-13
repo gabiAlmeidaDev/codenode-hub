@@ -20,6 +20,7 @@ export interface HubLead {
   notes: string | null;
   created_at: string;           // ISO
   updated_at: string;           // ISO
+  order_index: number | null; // <<< NOVO
 }
 
 export interface HubTask {
@@ -37,3 +38,11 @@ export interface Kpis {
   inProduction: number;
   pendingTasks: number;
 }
+
+export type WipLimits = Partial<Record<Stage, number>>;
+export type HubSettings = {
+  id: string;            // "default"
+  wip_enabled: boolean;
+  wip_limits: WipLimits; // { qualificado?: 6, producao?: 8, ... }
+  updated_at: string;
+};

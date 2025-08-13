@@ -1,74 +1,128 @@
-import { useEffect, useState } from "react";
-import { motion } from "framer-motion";
-import { Link } from "react-router-dom";
-import { fetchKpis } from "@/api/hub";
-import type { Kpis } from "@/lib/types";
+import { useEffect, useMemo, useState } from "react";
+import { fetchAnalyticsBase } from "@/api/analytics";
+import { formatBRL } from "@/utils";
+import Skeleton from "@/components/common/skeleton";
+import { ResponsiveContainer, BarChart, Bar, XAxis, YAxis, Tooltip, PieChart, Pie, Cell } from "recharts";
 
-const KpiCard = ({ label, value, to }: { label: string; value: string | number; to: string }) => (
-  <Link to={to} className="card p-5 block">
-    <div className="text-sm text-[hsl(215,12%,65%)]">{label}</div>
-    <div className="text-2xl font-semibold mt-1">{value}</div>
-  </Link>
-);
+type LeadRow = { id: string; stage: string; service: string; amount: number | null; created_at: string };
+type TaskRow = { id: string; lead_id: string; done: boolean; tag: string | null; created_at: string };
 
 export default function DashboardPage() {
-  const [kpis, setKpis] = useState<Kpis | null>(null);
   const [loading, setLoading] = useState(true);
+  const [leads, setLeads] = useState<LeadRow[]>([]);
+  const [tasks, setTasks] = useState<TaskRow[]>([]);
 
   useEffect(() => {
     (async () => {
-      try {
-        const data = await fetchKpis();
-        setKpis(data);
-      } finally {
-        setLoading(false);
-      }
+      setLoading(true);
+      const { leads, tasks } = await fetchAnalyticsBase();
+      setLeads(leads as any[]);
+      setTasks(tasks as any[]);
+      setLoading(false);
     })();
   }, []);
 
+  // KPIs básicos
+  const kpis = useMemo(() => {
+    const totalLeads = leads.length;
+    const emProposta = leads.filter(l => l.stage === "proposta").length;
+    const emProducao = leads.filter(l => l.stage === "producao").length;
+    const totalTasks = tasks.length;
+    const tasksDone = tasks.filter(t => t.done).length;
+    const pipeValor = (leads.reduce((acc, l) => acc + (l.amount ?? 0), 0) || 0);
+
+    return {
+      totalLeads, emProposta, emProducao, totalTasks, tasksDone, pipeValor
+    };
+  }, [leads, tasks]);
+
+  // Funil por estágio
+  const porEstagio = useMemo(() => {
+    const order = ["prospect","qualificado","proposta","producao","testes","entregue"];
+    const map = new Map<string, number>();
+    leads.forEach(l => map.set(l.stage, (map.get(l.stage) ?? 0) + 1));
+    return order.map(s => ({ stage: s, count: map.get(s) ?? 0 }));
+  }, [leads]);
+
+  // Tarefas por tag (pizza)
+  const porTag = useMemo(() => {
+    const map = new Map<string, number>();
+    tasks.forEach(t => {
+      const tag = t.tag ?? "sem-tag";
+      map.set(tag, (map.get(tag) ?? 0) + 1);
+    });
+    return Array.from(map.entries()).map(([tag, count]) => ({ tag, count }));
+  }, [tasks]);
+
   return (
-    <motion.div
-      initial={{ opacity: 0, y: 16 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.4 }}
-      className="space-y-6"
-    >
-      <div
-        className="rounded-2xl p-6"
-        style={{ background: "linear-gradient(120deg, hsl(280 80% 20% / 0.35), hsl(200 90% 20% / 0.28))" }}
-      >
-        <div className="text-2xl font-semibold">Bem-vinda ao Hub</div>
-        <div className="text-[hsl(215,12%,65%)]">Tudo clicável, escuro e elegante.</div>
+    <div className="space-y-5">
+      <div className="flex items-center justify-between">
+        <div className="text-xl font-semibold">Dashboard</div>
       </div>
 
-      <div className="grid grid-cols-4 gap-4">
-        <KpiCard label="Leads (7d)" value={loading ? "…" : kpis?.leads7d ?? 0} to="/leads" />
-        <KpiCard label="Conversão (30d)" value={loading ? "…" : `${kpis?.conversion30d ?? 0}%`} to="/leads" />
-        <KpiCard label="Em Produção" value={loading ? "…" : kpis?.inProduction ?? 0} to="/pipeline" />
-        <KpiCard label="Tasks Pendentes" value={loading ? "…" : kpis?.pendingTasks ?? 0} to="/leads" />
-      </div>
+      {/* KPIs */}
+      {loading ? (
+        <div className="grid grid-cols-6 gap-3">
+          {Array.from({ length: 6 }).map((_, i) => <Skeleton key={i} className="h-20" />)}
+        </div>
+      ) : (
+        <div className="grid grid-cols-6 gap-3">
+          <KPI label="Leads" value={kpis.totalLeads} />
+          <KPI label="Propostas" value={kpis.emProposta} />
+          <KPI label="Em produção" value={kpis.emProducao} />
+          <KPI label="Tasks" value={kpis.totalTasks} />
+          <KPI label="Concluídas" value={kpis.tasksDone} />
+          <KPI label="Valor no funil" value={formatBRL(kpis.pipeValor)} />
+        </div>
+      )}
 
-      <div className="grid grid-cols-2 gap-4">
-        <div className="card p-5">
-          <div className="font-medium mb-3">Funil por estágio</div>
-          <div className="h-56 flex items-center justify-center text-[hsl(215,12%,65%)]">
-            Gráfico (entra no v0.2)
-          </div>
+      {/* Gráficos */}
+      <div className="grid grid-cols-2 gap-3">
+        <div className="card p-4">
+          <div className="text-sm font-medium mb-2">Leads por estágio</div>
+          {loading ? (
+            <Skeleton className="h-64" />
+          ) : (
+            <div style={{ width: "100%", height: 260 }}>
+              <ResponsiveContainer>
+                <BarChart data={porEstagio}>
+                  <XAxis dataKey="stage" tick={{ fill: "hsl(215,12%,70%)", fontSize: 12 }} />
+                  <YAxis tick={{ fill: "hsl(215,12%,70%)", fontSize: 12 }} />
+                  <Tooltip contentStyle={{ background: "hsl(222,37%,12%)", border: "1px solid hsl(220,12%,18%)", color: "white" }} />
+                  <Bar dataKey="count" radius={[8,8,0,0]} />
+                </BarChart>
+              </ResponsiveContainer>
+            </div>
+          )}
         </div>
-        <div className="card p-5">
-          <div className="font-medium mb-3">Tarefas por tag</div>
-          <div className="h-56 flex items-center justify-center text-[hsl(215,12%,65%)]">
-            Gráfico (entra no v0.2)
-          </div>
-        </div>
-      </div>
 
-      <div className="card p-5">
-        <div className="font-medium mb-3">Próximas tarefas</div>
-        <div className="text-[hsl(215,12%,65%)] text-sm">
-          Lista (v0.1) • hoje conectamos os KPIs e roteiro de navegação
+        <div className="card p-4">
+          <div className="text-sm font-medium mb-2">Tarefas por tag</div>
+          {loading ? (
+            <Skeleton className="h-64" />
+          ) : (
+            <div style={{ width: "100%", height: 260 }}>
+              <ResponsiveContainer>
+                <PieChart>
+                  <Pie dataKey="count" data={porTag} outerRadius={90} nameKey="tag">
+                    {porTag.map((_, i) => <Cell key={i} />)}
+                  </Pie>
+                  <Tooltip contentStyle={{ background: "hsl(222,37%,12%)", border: "1px solid hsl(220,12%,18%)", color: "white" }} />
+                </PieChart>
+              </ResponsiveContainer>
+            </div>
+          )}
         </div>
       </div>
-    </motion.div>
+    </div>
+  );
+}
+
+function KPI({ label, value }: { label: string; value: number | string }) {
+  return (
+    <div className="card p-4 flex flex-col justify-center gap-1">
+      <div className="text-[hsl(215,12%,65%)] text-xs">{label}</div>
+      <div className="text-xl font-semibold">{value}</div>
+    </div>
   );
 }
