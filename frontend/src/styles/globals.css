@@ -47,3 +47,30 @@ body {
 [cmdk-item]:hover {
   background: hsl(222, 37%, 14%);
 }
+
+/* Tabelas */
+table th, table td {
+  @apply align-middle;
+}
+
+/* Scrollbar discreta em dark */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: hsl(220 12% 18%) transparent;
+}
+*::-webkit-scrollbar { width: 10px; height: 10px; }
+*::-webkit-scrollbar-thumb { background: hsl(220 12% 18%); border-radius: 999px; }
+*::-webkit-scrollbar-track { background: transparent; }
+
+/* Kanban */
+.kanban-col { @apply rounded-2xl border border-[hsl(220,12%,18%)] bg-[hsl(222,37%,11%)] p-3; }
+.kanban-col-header { @apply px-2 py-1 text-sm font-medium text-[hsl(215,12%,80%)] flex items-center justify-between; }
+.kanban-col-body { @apply mt-2 space-y-3 min-h-[120px]; }
+.kanban-card { @apply rounded-2xl border border-[hsl(220,12%,18%)] bg-[hsl(222,37%,12%)] p-3 relative; }
+.kanban-card__top { @apply flex items-center gap-2; }
+.kanban-card__name { @apply font-medium truncate cursor-text hover:underline underline-offset-4; }
+.kanban-card__stage { @apply bg-transparent border border-[hsl(220,12%,18%)] rounded-xl px-2 py-1 text-xs capitalize; }
+.kanban-card__meta { @apply text-[11px] text-[hsl(215,12%,70%)] flex gap-3 mt-1; }
+.kanban-card__actions { @apply mt-3 flex items-center gap-2; }
+.kanban-deadline { @apply absolute right-2 bottom-2 text-[11px] text-[hsl(215,12%,70%)] select-none; }
+
