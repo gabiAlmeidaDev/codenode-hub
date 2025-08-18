@@ -80,8 +80,8 @@ export default function PipelinePage() {
     for (const l of all) map[l.stage].push(l);
     for (const s of STAGES) {
       map[s].sort((a, b) => {
-        const ao = (a as any).order_index ?? 0;
-        const bo = (b as any).order_index ?? 0;
+        const ao = a.order_index ?? 0;
+        const bo = b.order_index ?? 0;
         if (ao !== bo) return ao - bo;
         return new Date(a.created_at).getTime() - new Date(b.created_at).getTime();
       });
@@ -116,7 +116,7 @@ export default function PipelinePage() {
         const src = [...prev];
         const idx = src.findIndex((l) => l.id === activeId);
         if (idx === -1) return prev;
-        const moved = { ...src[idx], stage: to, order_index: 0 as any };
+        const moved = { ...src[idx], stage: to, order_index: 0 };
         src.splice(idx, 1);
 
         // insere antes do primeiro item dessa coluna
@@ -144,7 +144,7 @@ export default function PipelinePage() {
         const iOver = src.findIndex((l) => l.id === target.id);
         if (iFrom === -1 || iOver === -1) return prev;
 
-        const moved = { ...src[iFrom], stage: to, order_index: 0 as any };
+        const moved = { ...src[iFrom], stage: to, order_index: 0 };
         src.splice(iFrom, 1);
         // inserir no índice global do alvo (antes dele)
         const insertAt = src.findIndex((l) => l.id === target.id);
@@ -167,7 +167,7 @@ export default function PipelinePage() {
         const dict = Object.fromEntries(inCol.map((l) => [l.id, l]));
         const reordered = orderedIds.map((id, i) => {
           const obj = { ...(dict[id] as HubLead) };
-          (obj as any).order_index = i;
+          obj.order_index = i;
           return obj;
         });
         const others = copy.filter((l) => l.stage !== from);
@@ -240,7 +240,7 @@ export default function PipelinePage() {
                             const idx = prev.findIndex((l) => l.id === id);
                             if (idx === -1) return prev;
                             const copy = [...prev];
-                            copy[idx] = { ...copy[idx], stage: to, order_index: 0 as any };
+                            copy[idx] = { ...copy[idx], stage: to, order_index: 0 };
                             return copy;
                           });
                           // persiste
@@ -316,3 +316,4 @@ function Item({ id, children }: { id: string; children: React.ReactNode }) {
     </div>
   );
 }
+
