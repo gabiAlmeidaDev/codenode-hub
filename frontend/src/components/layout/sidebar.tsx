@@ -25,6 +25,7 @@ export default function Sidebar() {
         <NavItem to="/pipeline" icon={KanbanSquare} label="Pipeline" />
         <NavItem to="/leads" icon={Users} label="Leads" />
         <NavItem to="/settings" icon={Settings} label="Settings" />
+        <NavItem to="/finance"  label="Financeiro" />
       </nav>
     </div>
   )
