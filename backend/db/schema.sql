@@ -38,6 +38,19 @@ create table if not exists public.hub_stage_history (
   created_at timestamptz not null default now()
 );
 
+-- Tabela de lançamentos financeiros
+create table if not exists public.hub_finance_entry (
+  id uuid primary key default gen_random_uuid(),
+  lead_id uuid references public.hub_lead(id) on delete set null,
+  title text not null,
+  amount integer not null, -- centavos, positivo (receita) ou negativo (despesa)
+  due_date timestamptz not null,
+  paid_at timestamptz,
+  notes text,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now()
+);
+
 -- Trigger de updated_at
 create or replace function public.touch_updated_at()
 returns trigger language plpgsql as $$
@@ -57,3 +70,6 @@ create index if not exists idx_hub_lead_stage on public.hub_lead(stage);
 create index if not exists idx_hub_task_lead on public.hub_task(lead_id);
 create index if not exists idx_hub_task_done on public.hub_task(done);
 create index if not exists idx_stage_history_lead on public.hub_stage_history(lead_id, created_at desc);
+create index if not exists idx_finance_lead on public.hub_finance_entry(lead_id);
+create index if not exists idx_finance_due on public.hub_finance_entry(due_date);
+create index if not exists idx_finance_paid on public.hub_finance_entry(paid_at);

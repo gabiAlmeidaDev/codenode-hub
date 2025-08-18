@@ -1,12 +1,7 @@
-export type Stage =
-  | "prospect"
-  | "qualificado"
-  | "proposta"
-  | "producao"
-  | "testes"
-  | "entregue";
-
+// src/lib/types.ts
+export type Stage = "prospect" | "qualificado" | "proposta" | "producao" | "testes" | "entregue";
 export type Service = "landing" | "agente" | "combo";
+export type TaskTag = "briefing" | "layout" | "conteudo" | "setup" | "qa" | "go-live";
 
 export interface HubLead {
   id: string;
@@ -15,12 +10,12 @@ export interface HubLead {
   email: string | null;
   service: Service;
   stage: Stage;
-  amount: number | null;        // centavos
-  deadline: string | null;      // ISO date
+  amount: number | null; // centavos
+  deadline: string | null; // ISO string
   notes: string | null;
-  created_at: string;           // ISO
-  updated_at: string;           // ISO
-  order_index: number | null; // <<< NOVO
+  created_at: string; // ISO string
+  updated_at: string; // ISO string
+  order_index?: number; // índice para ordenação no pipeline
 }
 
 export interface HubTask {
@@ -28,21 +23,43 @@ export interface HubTask {
   lead_id: string;
   title: string;
   done: boolean;
-  tag: "briefing" | "layout" | "conteudo" | "setup" | "qa" | "go-live" | null;
-  created_at: string;
+  tag: TaskTag | null;
+  created_at: string; // ISO string
 }
 
-export interface Kpis {
-  leads7d: number;
-  conversion30d: number;   // 0..100 (%)
-  inProduction: number;
-  pendingTasks: number;
+export interface HubStageHistory {
+  id: string;
+  lead_id: string;
+  from_stage: Stage | null;
+  to_stage: Stage;
+  note: string | null;
+  created_at: string; // ISO string
+}
+
+export interface HubFinanceEntry {
+  id: string;
+  lead_id: string | null;
+  title: string;
+  amount: number; // centavos, positivo (receita) ou negativo (despesa)
+  due_date: string; // ISO string
+  paid_at: string | null; // ISO string
+  notes: string | null;
+  created_at: string; // ISO string
+  updated_at: string; // ISO string
+}
+
+export interface HubSettings {
+  id: string;
+  wip_enabled: boolean;
+  wip_limits: WipLimits;
+  updated_at: string; // ISO string
 }
 
 export type WipLimits = Partial<Record<Stage, number>>;
-export type HubSettings = {
-  id: string;            // "default"
-  wip_enabled: boolean;
-  wip_limits: WipLimits; // { qualificado?: 6, producao?: 8, ... }
-  updated_at: string;
-};
+
+export interface Kpis {
+  leads7d: number;
+  conversion30d: number;
+  inProduction: number;
+  pendingTasks: number;
+}

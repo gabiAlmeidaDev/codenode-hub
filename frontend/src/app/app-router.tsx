@@ -17,9 +17,9 @@ export default function AppRouter() {
         <Route path="/pipeline" element={<PipelinePage />} />
         <Route path="/leads" element={<LeadsPage />} />
         <Route path="/leads/:id" element={<LeadDetailPage />} />
+        <Route path="/finance" element={<FinancePage />} />
         <Route path="/settings" element={<SettingsPage />} />
         <Route path="*" element={<Navigate to="/dashboard" replace />} />
-        <Route path="/finance" element={<FinancePage />} />
       </Route>
     </Routes>
   );
