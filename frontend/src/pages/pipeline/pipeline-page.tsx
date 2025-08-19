@@ -1,4 +1,5 @@
 // src/pages/pipeline/pipeline-page.tsx
+import React from "react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import {
   DndContext,
@@ -37,7 +38,7 @@ const PRETTY: Record<Stage, string> = {
   prospect: "Prospect",
   qualificado: "Qualificado",
   proposta: "Proposta",
-  producao: "Producao", // mude para "Produção" se quiser acento
+  producao: "Produção",
   testes: "Testes",
   entregue: "Entregue",
 };
@@ -220,7 +221,7 @@ export default function PipelinePage() {
           onDragOver={handleDragOver}
           onDragEnd={handleDragEnd}
         >
-          <div className="grid md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-4">
             {STAGES.map((col) => (
               <Column key={col} id={col} title={PRETTY[col]} count={byStage[col].length}>
                 <SortableContext
@@ -284,6 +285,20 @@ function Column({
   children: React.ReactNode;
 }) {
   const { setNodeRef, isOver } = useDroppable({ id: `col:${id}` });
+  
+  // Função para obter a cor do header baseada no estágio
+  const getHeaderColor = (stage: Stage) => {
+    switch (stage) {
+      case "prospect": return "text-blue-400";
+      case "qualificado": return "text-indigo-400";
+      case "proposta": return "text-purple-400";
+      case "producao": return "text-yellow-400";
+      case "testes": return "text-orange-400";
+      case "entregue": return "text-green-400";
+      default: return "text-[hsl(215,12%,80%)]";
+    }
+  };
+
   return (
     <div
       ref={setNodeRef}
@@ -291,7 +306,7 @@ function Column({
         isOver ? "ring-1 ring-violet-500/40" : ""
       }`}
     >
-      <div className="px-2 py-1 text-sm font-medium text-[hsl(215,12%,80%)] flex items-center justify-between">
+      <div className={`px-2 py-1 text-sm font-medium flex items-center justify-between ${getHeaderColor(id)}`}>
         <span className="capitalize">{title}</span>
         <span className="opacity-70 text-xs">({count})</span>
       </div>
@@ -308,6 +323,7 @@ function Item({ id, children }: { id: string; children: React.ReactNode }) {
     transform: CSS.Transform.toString(transform),
     transition,
     opacity: isDragging ? 0.6 : 1,
+    zIndex: isDragging ? 10 : 0,
   };
 
   return (
@@ -316,4 +332,5 @@ function Item({ id, children }: { id: string; children: React.ReactNode }) {
     </div>
   );
 }
+
 

@@ -1,3 +1,4 @@
+import React from "react";
 import { useToast } from "@/components/common/toast";
 
 export default function CopyText({ text, children }: { text: string; children: React.ReactNode }) {

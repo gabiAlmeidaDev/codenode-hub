@@ -66,11 +66,27 @@ table th, table td {
 .kanban-col { @apply rounded-2xl border border-[hsl(220,12%,18%)] bg-[hsl(222,37%,11%)] p-3; }
 .kanban-col-header { @apply px-2 py-1 text-sm font-medium text-[hsl(215,12%,80%)] flex items-center justify-between; }
 .kanban-col-body { @apply mt-2 space-y-3 min-h-[120px]; }
-.kanban-card { @apply rounded-2xl border border-[hsl(220,12%,18%)] bg-[hsl(222,37%,12%)] p-3 relative; }
-.kanban-card__top { @apply flex items-center gap-2; }
-.kanban-card__name { @apply font-medium truncate cursor-text hover:underline underline-offset-4; }
-.kanban-card__stage { @apply bg-transparent border border-[hsl(220,12%,18%)] rounded-xl px-2 py-1 text-xs capitalize; }
-.kanban-card__meta { @apply text-[11px] text-[hsl(215,12%,70%)] flex gap-3 mt-1; }
-.kanban-card__actions { @apply mt-3 flex items-center gap-2; }
-.kanban-deadline { @apply absolute right-2 bottom-2 text-[11px] text-[hsl(215,12%,70%)] select-none; }
+.kanban-card { 
+  @apply rounded-2xl border border-[hsl(220,12%,18%)] bg-[hsl(222,37%,12%)] p-3 relative transition-all duration-200 pb-8;
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+}
+.kanban-card:hover {
+  @apply bg-[hsl(222,37%,14%)] border-[hsl(220,12%,25%)];
+  box-shadow: 0 6px 12px rgba(0, 0, 0, 0.15);
+}
+.kanban-card__top { @apply flex items-start gap-2 mb-2; }
+.kanban-card__name { 
+  @apply font-medium truncate cursor-text hover:underline underline-offset-4 flex-1 min-w-0 pr-2;
+  transition: all 0.2s ease;
+}
+.kanban-card__stage { 
+  @apply border border-[hsl(220,12%,18%)] rounded-xl px-2 py-1 text-xs capitalize transition-colors flex-shrink-0;
+  background: hsl(222, 37%, 14%);
+}
+.kanban-card__meta { @apply text-[11px] text-[hsl(215,12%,70%)] flex gap-3 mt-1 mb-2; }
+.kanban-card__actions { @apply mt-2 flex items-center gap-2 flex-wrap; }
+.kanban-deadline { 
+  @apply absolute right-3 -bottom-3 text-[10px] text-[hsl(215,12%,70%)] select-none bg-[hsl(222,37%,12%)] px-2 py-1 rounded-b-lg border border-t-0 border-[hsl(220,12%,18%)] z-10;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
 

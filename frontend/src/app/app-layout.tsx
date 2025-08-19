@@ -1,3 +1,4 @@
+import React from "react";
 import { NavLink, useNavigate, Outlet } from "react-router-dom";
 import { useEffect } from "react";
 import { LayoutGrid, KanbanSquare, Users, Settings, Wallet } from 'lucide-react';

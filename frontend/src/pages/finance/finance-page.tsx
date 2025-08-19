@@ -1,3 +1,4 @@
+import React from "react";
 import { useEffect, useMemo, useState } from "react";
 import { fetchFinanceEntries, createFinanceEntry, updateFinanceEntry, deleteFinanceEntry } from "@/api/finance";
 import type { HubFinanceEntry } from "@/lib/types";
