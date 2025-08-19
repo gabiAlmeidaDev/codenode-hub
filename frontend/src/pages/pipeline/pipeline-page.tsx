@@ -306,7 +306,7 @@ function Column({
         isOver ? "ring-1 ring-violet-500/40" : ""
       }`}
     >
-      <div className={`px-2 py-1 text-sm font-medium flex items-center justify-between ${getHeaderColor(id)}`}>
+      <div className={`px-3 py-2 text-base font-medium flex items-center justify-between ${getHeaderColor(id)}`}>
         <span className="capitalize">{title}</span>
         <span className="opacity-70 text-xs">({count})</span>
       </div>
