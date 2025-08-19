@@ -1,3 +1,4 @@
+import React from "react";
 import { useEffect, useState } from "react";
 import { getSettings, setWipEnabled, setWipLimits } from "@/api/settings";
 import type { HubSettings, WipLimits, Stage } from "@/lib/types";

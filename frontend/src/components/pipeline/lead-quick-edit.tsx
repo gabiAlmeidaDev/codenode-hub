@@ -1,3 +1,4 @@
+import React from "react";
 import { useState } from "react";
 import type { HubLead, Stage } from "@/lib/types";
 import { updateLead, moveLeadStage, createTaskQuick } from "@/api/hub";

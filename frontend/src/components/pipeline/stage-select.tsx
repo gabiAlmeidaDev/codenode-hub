@@ -1,3 +1,4 @@
+import React from "react";
 import type { Stage } from "@/lib/types";
 
 const STAGES: Stage[] = ["prospect","qualificado","proposta","producao","testes","entregue"];
