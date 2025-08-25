@@ -19,10 +19,13 @@ import {
   arrayMove,
 } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
+import { Plus } from "lucide-react";
 
 import LeadCard from "@/components/pipeline/lead-card";
+import CreateCardModal from "@/components/pipeline/create-card-modal";
 import type { HubLead, Stage } from "@/lib/types";
 import { fetchLeads, moveLeadStage, reorderLeadsInStage } from "@/api/hub";
+import { supabase } from "@/lib/supabase";
 
 // ---- colunas fixas e rótulos
 const STAGES: Stage[] = [
@@ -46,6 +49,7 @@ const PRETTY: Record<Stage, string> = {
 export default function PipelinePage() {
   const [all, setAll] = useState<HubLead[]>([]);
   const [loading, setLoading] = useState(true);
+  const [showCreateModal, setShowCreateModal] = useState(false);
 
   // DnD sensores (um só e confiável)
   const sensors = useSensors(
@@ -90,6 +94,31 @@ export default function PipelinePage() {
     return map;
   }, [all]);
 
+  async function createNewLead(name: string, stage: Stage = "prospect") {
+    try {
+      const { data, error } = await supabase
+        .from("hub_lead")
+        .insert({
+          name,
+          stage,
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString()
+        })
+        .select()
+        .single();
+
+      if (error) throw error;
+
+      // Atualiza o estado local
+      setAll(prev => [...prev, data]);
+      
+      // Fecha o modal
+      setShowCreateModal(false);
+    } catch (err) {
+      console.error("Erro ao criar lead:", err);
+    }
+  }
+
   function handleDragStart(e: DragStartEvent) {
     const id = String(e.active.id);
     activeIdRef.current = id;
@@ -120,7 +149,7 @@ export default function PipelinePage() {
         const moved = { ...src[idx], stage: to, order_index: 0 };
         src.splice(idx, 1);
 
-        // insere antes do primeiro item dessa coluna
+        // insere antes do primeiro item dessa coluna ou no final se estiver vazia
         const firstIndexOfCol = src.findIndex((l) => l.stage === to);
         const insertAt = firstIndexOfCol === -1 ? src.length : firstIndexOfCol;
         src.splice(insertAt, 0, moved);
@@ -209,7 +238,16 @@ export default function PipelinePage() {
   // === Render
   return (
     <div className="space-y-4">
-      <div className="text-xl font-semibold">Pipeline</div>
+      <div className="flex items-center justify-between">
+        <div className="text-xl font-semibold">Pipeline</div>
+        <button
+          onClick={() => setShowCreateModal(true)}
+          className="btn-primary px-4 py-2 text-sm rounded-xl flex items-center gap-2"
+        >
+          <Plus size={16} />
+          Novo Card
+        </button>
+      </div>
 
       {loading ? (
         <div className="card p-4">Carregando…</div>
@@ -259,11 +297,25 @@ export default function PipelinePage() {
                       />
                     </Item>
                   ))}
+                  {byStage[col].length === 0 && (
+                    <div className="h-[120px] flex items-center justify-center text-[hsl(215,12%,65%)] text-sm rounded-2xl border border-dashed border-[hsl(220,12%,18%)]">
+                      Arraste um card aqui
+                    </div>
+                  )}
                 </SortableContext>
               </Column>
             ))}
           </div>
         </DndContext>
+      )}
+
+      {/* Modal de criação de card */}
+      {showCreateModal && (
+        <CreateCardModal
+          stages={STAGES}
+          onCreate={createNewLead}
+          onClose={() => setShowCreateModal(false)}
+        />
       )}
     </div>
   );
@@ -310,7 +362,7 @@ function Column({
         <span className="capitalize">{title}</span>
         <span className="opacity-70 text-xs">({count})</span>
       </div>
-      <div className="mt-2 space-y-3 min-h-[120px]">{children}</div>
+      <div className="mt-2 space-y-3 min-h-[120px] flex flex-col justify-start">{children}</div>
     </div>
   );
 }

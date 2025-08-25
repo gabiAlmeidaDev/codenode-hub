@@ -1,7 +1,7 @@
 import React, { useState } from "react";
 import type { HubLead, Stage, Service } from "@/lib/types";
 import { formatBRL, shortDate } from "@/utils";
-import { Edit3, Plus, X } from "lucide-react";
+import { Plus, X } from "lucide-react";
 
 const STAGES: Stage[] = ["prospect","qualificado","proposta","producao","testes","entregue"];
 const SERVICES: Service[] = ["landing", "agente", "combo"];
@@ -82,7 +82,8 @@ export default function LeadCard({
   };
 
   // Função para criar tarefa rápida
-  const createQuickTask = () => {
+  const createQuickTask = (e: React.MouseEvent) => {
+    e.stopPropagation();
     if (quickTitle.trim()) {
       const newTask: Task = {
         id: `temp-${Date.now()}`,
@@ -106,7 +107,8 @@ export default function LeadCard({
   };
 
   // Função para criar nova tarefa
-  const handleCreateTask = () => {
+  const handleCreateTask = (e: React.MouseEvent) => {
+    e.stopPropagation();
     if (newTaskTitle.trim()) {
       const newTask: Task = {
         id: `temp-${Date.now()}`,
@@ -123,116 +125,137 @@ export default function LeadCard({
 
   // Função para salvar todas as alterações
   const saveAllChanges = () => {
-    // Aqui você pode implementar a lógica para salvar as alterações
-    // Por enquanto, vamos apenas fechar o modo de edição
+    // Atualiza o estado local do card
     setIsEditing(false);
+    
+    // Se a etapa mudou, notifica o componente pai para mover o card
+    if (cardData.stage !== lead.stage) {
+      onStageChanged(lead.id, lead.stage, cardData.stage);
+    }
   };
 
   return (
-    <div className="kanban-card cursor-pointer">
-      {/* Nome do cliente - Fixado no topo */}
-      <div className="mb-1.5">
-        {isEditing ? (
-          <input
-            className="w-full bg-[hsl(222,37%,14%)] border border-[hsl(220,12%,18%)] rounded-md px-2.5 py-1 text-sm focus:outline-none focus:ring-1 focus:ring-violet-500"
-            value={cardData.name}
-            onChange={(e) => setCardData({...cardData, name: e.target.value})}
-            onBlur={saveName}
-            autoFocus
-          />
-        ) : (
-          <div
-            className="font-medium text-sm truncate block w-full"
-            onClick={() => setIsEditing(true)}
-            title="Clique para editar"
-          >
-            {cardData.name || "—"}
-          </div>
-        )}
-      </div>
-
-      {/* Dropdown */}
-      <div className="mb-1.5">
-        <select
-          className={`kanban-card__stage ${getStageColor(stage)} text-xs w-full`}
-          value={stage}
-          onChange={(e) => {
-            const to = e.target.value as Stage;
-            if (to !== stage) onStageChanged(lead.id, stage, to);
-          }}
-        >
-          {STAGES.map((s) => (
-            <option key={s} value={s} className="bg-[hsl(222,37%,10%)] capitalize">{s}</option>
-          ))}
-        </select>
-      </div>
-
-      {/* Tipo de serviço e valor */}
-      <div className="kanban-card__meta mb-2 text-xs">
-        <div className="capitalize">{cardData.service || "—"}</div>
-        {cardData.amount != null && <div>{formatBRL(cardData.amount)}</div>}
-      </div>
-
-      {/* Ações */}
-      <div className="kanban-card__actions mb-5 text-xs">
-        <button
-          className="px-2 py-1 text-xs rounded-md border border-[hsl(220,12%,18%)] hover:bg-[hsl(222,37%,14%)] flex items-center gap-1 transition"
-          onClick={() => setOpenQuickTask((v) => !v)}
-        >
-          <Plus size={10} />
-          Tarefa
-        </button>
-      </div>
-
-      {/* Data de prazo (se houver) */}
-      {cardData.deadline && (
-        <div className="kanban-deadline text-[9px]" title={`Prazo: ${shortDate(cardData.deadline)}`}>
-          ⏰ {shortDate(cardData.deadline)}
-        </div>
-      )}
-
-      {/* Formulário compacto */}
-      {openQuickTask && (
-        <div 
-          className="mt-3 rounded-xl border border-[hsl(220,12%,18%)] p-3 bg-[hsl(222,37%,12%)]"
-        >
-          <div className="text-[10px] text-[hsl(215,12%,65%)] mb-2">Nova tarefa</div>
-          <div className="flex flex-col sm:flex-row items-center gap-2">
-            <input
-              className="flex-1 bg-[hsl(222,37%,14%)] border border-[hsl(220,12%,18%)] rounded-md px-2.5 py-1 text-[10px] focus:outline-none focus:ring-1 focus:ring-violet-500 w-full"
-              placeholder="Título…"
-              value={quickTitle}
-              onChange={(e) => setQuickTitle(e.target.value)}
-              onKeyDown={(e) => { if (e.key === "Enter") createQuickTask(); }}
-            />
-            <div className="flex gap-2 w-full sm:w-auto">
-              <input
-                className="flex-1 sm:flex-none bg-[hsl(222,37%,14%)] border border-[hsl(220,12%,18%)] rounded-md px-2.5 py-1 text-[10px] focus:outline-none focus:ring-1 focus:ring-violet-500 w-full"
-                placeholder="Tag"
-                value={quickTag}
-                onChange={(e) => setQuickTag(e.target.value)}
-                onKeyDown={(e) => { if (e.key === "Enter") createQuickTask(); }}
-              />
-              <button className="btn-primary px-2.5 py-1 text-[10px] rounded-md" onClick={createQuickTask}>Criar</button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Botão para editar card completo */}
-      <button
-        className="absolute top-2 right-2 p-1 rounded-md hover:bg-[hsl(222,37%,14%)] transition"
+    <>
+      <div 
+        className="kanban-card cursor-pointer"
         onClick={(e) => {
           e.stopPropagation();
           setIsEditing(true);
         }}
       >
-        <Edit3 size={12} />
-      </button>
+        {/* Nome do cliente - Fixado no topo */}
+        <div className="mb-1.5">
+          <div
+            className="font-medium text-sm truncate block w-full"
+            title="Clique para editar"
+          >
+            {cardData.name || "—"}
+          </div>
+        </div>
+
+        {/* Dropdown */}
+        <div className="mb-1.5">
+          <select
+            className={`kanban-card__stage ${getStageColor(stage)} text-xs w-full`}
+            value={stage}
+            onChange={(e) => {
+              e.stopPropagation();
+              const to = e.target.value as Stage;
+              if (to !== stage) onStageChanged(lead.id, stage, to);
+            }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            {STAGES.map((s) => (
+              <option key={s} value={s} className="bg-[hsl(222,37%,10%)] capitalize">{s}</option>
+            ))}
+          </select>
+        </div>
+
+        {/* Tipo de serviço e valor */}
+        <div className="kanban-card__meta mb-2 text-xs">
+          <div className="capitalize">{cardData.service || "—"}</div>
+          {cardData.amount != null && <div>{formatBRL(cardData.amount)}</div>}
+        </div>
+
+        {/* Ações */}
+        <div className="kanban-card__actions mb-5 text-xs">
+          <button
+            className="px-2 py-1 text-xs rounded-md border border-[hsl(220,12%,18%)] hover:bg-[hsl(222,37%,14%)] flex items-center gap-1 transition"
+            onClick={(e) => {
+              e.stopPropagation();
+              setOpenQuickTask((v) => !v);
+            }}
+          >
+            <Plus size={10} />
+            Tarefa
+          </button>
+        </div>
+
+        {/* Data de prazo (se houver) */}
+        {cardData.deadline && (
+          <div className="kanban-deadline text-[9px]" title={`Prazo: ${shortDate(cardData.deadline)}`}>
+            ⏰ {shortDate(cardData.deadline)}
+          </div>
+        )}
+
+        {/* Formulário compacto */}
+        {openQuickTask && (
+          <div 
+            className="mt-3 rounded-xl border border-[hsl(220,12%,18%)] p-3 bg-[hsl(222,37%,12%)]"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="text-[10px] text-[hsl(215,12%,65%)] mb-2">Nova tarefa</div>
+            <div className="flex flex-col sm:flex-col items-center gap-2">
+              <input
+                className="flex-1 bg-[hsl(222,37%,14%)] border border-[hsl(220,12%,18%)] rounded-md px-2.5 py-1 text-[10px] focus:outline-none focus:ring-1 focus:ring-violet-500 w-full"
+                placeholder="Título…"
+                value={quickTitle}
+                onChange={(e) => {
+                  e.stopPropagation();
+                  setQuickTitle(e.target.value);
+                }}
+                onKeyDown={(e) => {
+                  e.stopPropagation();
+                  if (e.key === "Enter") createQuickTask(e as any);
+                }}
+                onClick={(e) => e.stopPropagation()}
+              />
+              <div className="flex gap-2 w-full">
+                <input
+                  className="flex-1 sm:flex-none bg-[hsl(222,37%,14%)] border border-[hsl(220,12%,18%)] rounded-md px-2.5 py-1 text-[10px] focus:outline-none focus:ring-1 focus:ring-violet-500 w-full"
+                  placeholder="Tag"
+                  value={quickTag}
+                  onChange={(e) => {
+                    e.stopPropagation();
+                    setQuickTag(e.target.value);
+                  }}
+                  onKeyDown={(e) => {
+                    e.stopPropagation();
+                    if (e.key === "Enter") createQuickTask(e as any);
+                  }}
+                  onClick={(e) => e.stopPropagation()}
+                />
+                <button 
+                  className="btn-primary px-2.5 py-1 text-[10px] rounded-md"
+                  onClick={createQuickTask}
+                >
+                  Criar
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+      </div>
 
       {/* Modal de edição completa */}
       {isEditing && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+        <div 
+          className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4"
+          onClick={(e) => {
+            e.stopPropagation();
+            setIsEditing(false);
+          }}
+        >
           <div 
             className="bg-[hsl(222,37%,10%)] border border-[hsl(220,12%,18%)] rounded-2xl w-full max-w-2xl max-h-[90vh] overflow-hidden flex flex-col"
             onClick={(e) => e.stopPropagation()}
@@ -243,7 +266,11 @@ export default function LeadCard({
                 type="text"
                 className="bg-transparent text-xl font-bold w-full focus:outline-none"
                 value={cardData.name}
-                onChange={(e) => setCardData({...cardData, name: e.target.value})}
+                onChange={(e) => {
+                  e.stopPropagation();
+                  setCardData({...cardData, name: e.target.value});
+                }}
+                onClick={(e) => e.stopPropagation()}
               />
               <button 
                 onClick={() => setIsEditing(false)}
@@ -265,7 +292,11 @@ export default function LeadCard({
                     type="text"
                     className="w-full bg-[hsl(222,37%,14%)] border border-[hsl(220,12%,18%)] rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-violet-500"
                     value={cardData.phone || ""}
-                    onChange={(e) => setCardData({...cardData, phone: e.target.value || null})}
+                    onChange={(e) => {
+                      e.stopPropagation();
+                      setCardData({...cardData, phone: e.target.value || null});
+                    }}
+                    onClick={(e) => e.stopPropagation()}
                   />
                 </div>
 
@@ -277,7 +308,11 @@ export default function LeadCard({
                     type="text"
                     className="w-full bg-[hsl(222,37%,14%)] border border-[hsl(220,12%,18%)] rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-violet-500"
                     value={cardData.email || ""}
-                    onChange={(e) => setCardData({...cardData, email: e.target.value || null})}
+                    onChange={(e) => {
+                      e.stopPropagation();
+                      setCardData({...cardData, email: e.target.value || null});
+                    }}
+                    onClick={(e) => e.stopPropagation()}
                   />
                 </div>
 
@@ -288,7 +323,11 @@ export default function LeadCard({
                   <select
                     className="w-full bg-[hsl(222,37%,14%)] border border-[hsl(220,12%,18%)] rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-violet-500"
                     value={cardData.service}
-                    onChange={(e) => setCardData({...cardData, service: e.target.value as Service})}
+                    onChange={(e) => {
+                      e.stopPropagation();
+                      setCardData({...cardData, service: e.target.value as Service});
+                    }}
+                    onClick={(e) => e.stopPropagation()}
                   >
                     {SERVICES.map((s) => (
                       <option key={s} value={s} className="capitalize">{s}</option>
@@ -304,7 +343,11 @@ export default function LeadCard({
                     type="number"
                     className="w-full bg-[hsl(222,37%,14%)] border border-[hsl(220,12%,18%)] rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-violet-500"
                     value={cardData.amount || ""}
-                    onChange={(e) => setCardData({...cardData, amount: e.target.value ? Number(e.target.value) : null})}
+                    onChange={(e) => {
+                      e.stopPropagation();
+                      setCardData({...cardData, amount: e.target.value ? Number(e.target.value) : null});
+                    }}
+                    onClick={(e) => e.stopPropagation()}
                   />
                 </div>
 
@@ -316,7 +359,11 @@ export default function LeadCard({
                     type="date"
                     className="w-full bg-[hsl(222,37%,14%)] border border-[hsl(220,12%,18%)] rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-violet-500"
                     value={cardData.deadline ? cardData.deadline.split("T")[0] : ""}
-                    onChange={(e) => setCardData({...cardData, deadline: e.target.value || null})}
+                    onChange={(e) => {
+                      e.stopPropagation();
+                      setCardData({...cardData, deadline: e.target.value || null});
+                    }}
+                    onClick={(e) => e.stopPropagation()}
                   />
                 </div>
 
@@ -327,7 +374,11 @@ export default function LeadCard({
                   <select
                     className="w-full bg-[hsl(222,37%,14%)] border border-[hsl(220,12%,18%)] rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-violet-500"
                     value={cardData.stage}
-                    onChange={(e) => setCardData({...cardData, stage: e.target.value as Stage})}
+                    onChange={(e) => {
+                      e.stopPropagation();
+                      setCardData({...cardData, stage: e.target.value as Stage});
+                    }}
+                    onClick={(e) => e.stopPropagation()}
                   >
                     {STAGES.map((s) => (
                       <option key={s} value={s} className="capitalize">{s}</option>
@@ -344,7 +395,11 @@ export default function LeadCard({
                 <textarea
                   className="w-full bg-[hsl(222,37%,14%)] border border-[hsl(220,12%,18%)] rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-violet-500 min-h-[100px]"
                   value={cardData.notes || ""}
-                  onChange={(e) => setCardData({...cardData, notes: e.target.value || null})}
+                  onChange={(e) => {
+                    e.stopPropagation();
+                    setCardData({...cardData, notes: e.target.value || null});
+                  }}
+                  onClick={(e) => e.stopPropagation()}
                 />
               </div>
 
@@ -353,29 +408,41 @@ export default function LeadCard({
                 <h3 className="text-lg font-semibold mb-3">Tarefas</h3>
                 
                 {/* Nova tarefa */}
-                <div className="flex flex-col sm:flex-row items-center gap-2 mb-4">
+                <div className="flex flex-col gap-2 mb-4">
                   <input
                     className="flex-1 bg-[hsl(222,37%,14%)] border border-[hsl(220,12%,18%)] rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-violet-500 w-full"
                     placeholder="Nova tarefa..."
                     value={newTaskTitle}
-                    onChange={(e) => setNewTaskTitle(e.target.value)}
-                    onKeyDown={(e) => { if (e.key === "Enter") handleCreateTask(); }}
+                    onChange={(e) => {
+                      e.stopPropagation();
+                      setNewTaskTitle(e.target.value);
+                    }}
+                    onKeyDown={(e) => {
+                      e.stopPropagation();
+                      if (e.key === "Enter") handleCreateTask(e as any);
+                    }}
+                    onClick={(e) => e.stopPropagation()}
                   />
-                  <div className="flex gap-2 w-full sm:w-auto">
-                    <input
-                      className="flex-1 sm:flex-none bg-[hsl(222,37%,14%)] border border-[hsl(220,12%,18%)] rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-violet-500 w-full"
-                      placeholder="Tag"
-                      value={newTaskTag}
-                      onChange={(e) => setNewTaskTag(e.target.value)}
-                      onKeyDown={(e) => { if (e.key === "Enter") handleCreateTask(); }}
-                    />
-                    <button 
-                      className="btn-primary px-4 py-2 text-sm rounded-xl"
-                      onClick={handleCreateTask}
-                    >
-                      Adicionar
-                    </button>
-                  </div>
+                  <input
+                    className="flex-1 sm:flex-none bg-[hsl(222,37%,14%)] border border-[hsl(220,12%,18%)] rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-violet-500 w-full"
+                    placeholder="Tag"
+                    value={newTaskTag}
+                    onChange={(e) => {
+                      e.stopPropagation();
+                      setNewTaskTag(e.target.value);
+                    }}
+                    onKeyDown={(e) => {
+                      e.stopPropagation();
+                      if (e.key === "Enter") handleCreateTask(e as any);
+                    }}
+                    onClick={(e) => e.stopPropagation()}
+                  />
+                  <button 
+                    className="btn-primary px-4 py-2 text-sm rounded-xl self-start"
+                    onClick={handleCreateTask}
+                  >
+                    Adicionar Tarefa
+                  </button>
                 </div>
 
                 {/* Lista de tarefas */}
@@ -384,12 +451,17 @@ export default function LeadCard({
                     <div 
                       key={task.id} 
                       className="flex items-center gap-3 p-3 bg-[hsl(222,37%,12%)] border border-[hsl(220,12%,18%)] rounded-xl"
+                      onClick={(e) => e.stopPropagation()}
                     >
                       <input
                         type="checkbox"
                         checked={task.done}
-                        onChange={(e) => toggleTask(task.id, e.target.checked)}
+                        onChange={(e) => {
+                          e.stopPropagation();
+                          toggleTask(task.id, e.target.checked);
+                        }}
                         className="w-4 h-4 rounded"
+                        onClick={(e) => e.stopPropagation()}
                       />
                       <span className={`flex-1 ${task.done ? "line-through text-[hsl(215,12%,65%)]" : ""}`}>
                         {task.title}
@@ -432,6 +504,6 @@ export default function LeadCard({
           </div>
         </div>
       )}
-    </div>
+    </>
   );
 }
