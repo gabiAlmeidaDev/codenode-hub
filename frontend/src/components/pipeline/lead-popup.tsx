@@ -3,7 +3,7 @@ import type { HubLead, Stage, Service } from "@/lib/types";
 import { supabase } from "@/lib/supabase";
 import { formatBRL, shortDate } from "@/utils";
 import { X, Calendar, DollarSign, Tag, User, Phone, Mail, FileText } from "lucide-react";
-import { fetchTasks, createTaskQuick, toggleTask } from "@/api/tasks";
+import { listTasksByLead, createTaskQuick, toggleTaskDone } from "@/api/tasks";
 import { updateLead } from "@/api/hub";
 
 interface LeadPopupProps {
@@ -36,7 +36,7 @@ export default function LeadPopup({ lead, onClose, onStageChange }: LeadPopupPro
 
   async function loadTasks() {
     try {
-      const data = await fetchTasks(lead.id);
+      const data = await listTasksByLead(lead.id);
       setTasks(data);
     } catch (error) {
       console.error("Erro ao carregar tarefas:", error);
@@ -51,8 +51,6 @@ export default function LeadPopup({ lead, onClose, onStageChange }: LeadPopupPro
       // Atualiza o lead
       await updateLead(lead.id, {
         name,
-        phone: phone || null,
-        email: email || null,
         service,
         stage,
         amount,
@@ -76,7 +74,12 @@ export default function LeadPopup({ lead, onClose, onStageChange }: LeadPopupPro
   async function handleCreateTask() {
     if (!newTaskTitle.trim()) return;
     try {
-      await createTaskQuick(lead.id, newTaskTitle);
+      const payload = {
+        lead_id: lead.id,
+        title: newTaskTitle,
+        tag: newTaskTag || null
+      };
+      await createTaskQuick(payload);
       setNewTaskTitle("");
       setNewTaskTag("");
       loadTasks(); // Recarrega as tarefas
@@ -87,7 +90,7 @@ export default function LeadPopup({ lead, onClose, onStageChange }: LeadPopupPro
 
   async function handleToggleTask(taskId: string, done: boolean) {
     try {
-      await toggleTask(taskId, done);
+      await toggleTaskDone(taskId, done);
       setTasks(tasks.map(task => 
         task.id === taskId ? { ...task, done } : task
       ));

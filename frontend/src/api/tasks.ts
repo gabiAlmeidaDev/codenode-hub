@@ -49,3 +49,23 @@ export async function deleteTask(id: string) {
   const { error } = await supabase.from("hub_task").delete().eq("id", id);
   if (error) throw error;
 }
+
+// Funções exportadas para compatibilidade com lead-popup.tsx
+export { fetchTasks, toggleTask, createTaskQuick as createTaskQuickExport };
+
+async function fetchTasks(leadId: string) {
+  const { data, error } = await supabase
+    .from("hub_task")
+    .select("*")
+    .eq("lead_id", leadId)
+    .order("done", { ascending: true })
+    .order("created_at", { ascending: true });
+
+  if (error) throw error;
+  return (data ?? []) as Task[];
+}
+
+async function toggleTask(taskId: string, done: boolean) {
+  const { error } = await supabase.from("hub_task").update({ done }).eq("id", taskId);
+  if (error) throw error;
+}

@@ -103,7 +103,7 @@ export async function createTaskQuick(leadId: string, title: string) {
 
 export async function updateLead(
     id: string,
-    patch: Partial<Pick<HubLead, "name" | "stage" | "notes" | "service" | "amount" | "deadline">>
+    patch: Partial<Pick<HubLead, "name" | "stage" | "notes" | "service" | "amount" | "deadline" | "phone" | "email">>
   ) {
     const { error } = await supabase.from("hub_lead").update(patch).eq("id", id);
     if (error) throw error;

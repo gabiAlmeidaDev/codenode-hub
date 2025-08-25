@@ -10,6 +10,8 @@ import SettingsPage from "@/pages/settings/settings-page";
 import FinancePage from "@/pages/finance/finance-page";
 
 export default function AppRouter() {
+  console.log('AppRouter renderizando...');
+  
   return (
     <Routes>
       <Route element={<AppLayout />}>
