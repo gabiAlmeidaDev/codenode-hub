@@ -19,7 +19,7 @@ export default function LeadsPage() {
     (async () => {
       setLoading(true);
       try {
-        const data = await fetchLeads({ limit: 500 });
+        const data = await fetchLeads();
         setRows(data ?? []);
       } catch (error) {
         console.error(error);

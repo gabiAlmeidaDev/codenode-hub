@@ -4,6 +4,7 @@ import { env } from "./env.js";
 import { healthRoutes } from "./routes/health.js";
 import { leadRoutes } from "./routes/leads.js";
 import { taskRoutes } from "./routes/tasks.js";
+import { default as columnRoutes } from "./routes/columns.js";
 
 async function bootstrap() {
   const app = Fastify({ logger: false });
@@ -13,6 +14,7 @@ async function bootstrap() {
   app.register(healthRoutes);
   app.register(leadRoutes);
   app.register(taskRoutes);
+  app.register(columnRoutes);
 
   await app.listen({ port: env.PORT, host: "0.0.0.0" });
   console.log(`Backend up on http://localhost:${env.PORT}`);

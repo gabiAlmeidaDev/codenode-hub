@@ -1,120 +1,259 @@
+// src/api/hub.ts
 import { supabase } from "@/lib/supabase";
-import type { HubLead, HubTask, Kpis, Stage } from "@/lib/types";
+import type { HubLead, HubTask, HubFinanceEntry, HubSettings, Kpis, Stage } from "@/lib/types";
 
-// ---------- KPIs ----------
-export async function fetchKpis(): Promise<Kpis> {
-  // Leads nos últimos 7 dias
-  const since7 = new Date();
-  since7.setDate(since7.getDate() - 7);
+const API_BASE = "/api";
 
-  const since30 = new Date();
-  since30.setDate(since30.getDate() - 30);
+// === Leads ===
 
-  const [{ count: leads7d }, { count: total30 }, { count: delivered30 }, { count: inProduction }, { count: pendingTasks }] =
-    await Promise.all([
-      supabase.from("hub_lead").select("*", { count: "exact", head: true }).gte("created_at", since7.toISOString()),
-      supabase.from("hub_lead").select("*", { count: "exact", head: true }).gte("created_at", since30.toISOString()),
-      supabase
-        .from("hub_lead")
-        .select("*", { count: "exact", head: true })
-        .gte("updated_at", since30.toISOString())
-        .eq("stage", "entregue"),
-      supabase.from("hub_lead").select("*", { count: "exact", head: true }).eq("stage", "producao"),
-      supabase.from("hub_task").select("*", { count: "exact", head: true }).eq("done", false),
-    ]);
-
-  const conv = total30 && total30 > 0 && delivered30 ? Math.round((delivered30 / total30) * 100) : 0;
-
-  return {
-    leads7d: leads7d ?? 0,
-    conversion30d: conv,
-    inProduction: inProduction ?? 0,
-    pendingTasks: pendingTasks ?? 0,
-  };
-}
-
-// ---------- Leads ----------
-export async function fetchLeads(params?: { limit?: number; stage?: Stage; service?: string; search?: string }) {
-  let q = supabase
-    .from("hub_lead")
-    .select("*")
-    .order("created_at", { ascending: false });
-
-  if (params?.stage) q = q.eq("stage", params.stage);
-  if (params?.service) q = q.eq("service", params.service);
-  if (params?.search) {
-    // busca simples por nome/email/phone
-    q = q.or(
-      `name.ilike.%${params.search}%,email.ilike.%${params.search}%,phone.ilike.%${params.search}%`
-    );
+export async function fetchLeads(): Promise<HubLead[] | null> {
+  const res = await fetch(`${API_BASE}/leads`);
+  if (!res.ok) {
+    console.error("Failed to fetch leads", await res.text());
+    return null;
   }
-  if (params?.limit) q = q.limit(params.limit);
-
-  const { data, error } = await q;
-  if (error) throw error;
-  return (data ?? []) as HubLead[];
+  return res.json();
 }
 
-export async function fetchLeadById(id: string) {
-  const { data, error } = await supabase.from("hub_lead").select("*").eq("id", id).single();
-  if (error) throw error;
-  return data as HubLead;
+export async function createLead(lead: Partial<HubLead>): Promise<HubLead | null> {
+  const res = await fetch(`${API_BASE}/leads`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(lead),
+  });
+  if (!res.ok) {
+    console.error("Failed to create lead", await res.text());
+    return null;
+  }
+  return res.json();
 }
 
-// ---------- Tasks ----------
-export async function fetchTasks(leadId: string) {
+export async function updateLead(id: string, updates: Partial<HubLead>): Promise<HubLead | null> {
+  const res = await fetch(`${API_BASE}/leads/${id}`, {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(updates),
+  });
+  if (!res.ok) {
+    console.error("Failed to update lead", await res.text());
+    return null;
+  }
+  return res.json();
+}
+
+export async function deleteLead(id: string): Promise<boolean> {
+  const res = await fetch(`${API_BASE}/leads/${id}`, { method: "DELETE" });
+  return res.ok;
+}
+
+// Função para mover lead entre colunas
+export async function moveLeadColumn(
+  id: string,
+  from: string | null,
+  to: string | null,
+  note?: string
+): Promise<boolean> {
+  const res = await fetch(`${API_BASE}/leads/${id}/column`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ from, to, note }),
+  });
+  return res.ok;
+}
+
+// Função para reordenar leads em uma coluna
+export async function reorderLeadsInColumn(columnId: string, ids: string[]): Promise<boolean> {
+  const res = await fetch(`${API_BASE}/leads/reorder`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ columnId, ids }),
+  });
+  return res.ok;
+}
+
+// Função para reordenar leads em um stage (mantida para compatibilidade)
+export async function reorderLeadsInStage(stage: string, ids: string[]): Promise<boolean> {
+  const res = await fetch(`${API_BASE}/leads/reorder`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ stage, ids }),
+  });
+  return res.ok;
+}
+
+// === Tasks ===
+
+export async function fetchTasks(leadId: string): Promise<HubTask[] | null> {
   const { data, error } = await supabase
     .from("hub_task")
     .select("*")
     .eq("lead_id", leadId)
-    .order("done", { ascending: true })
     .order("created_at", { ascending: true });
 
-  if (error) throw error;
-  return (data ?? []) as HubTask[];
-}
-
-export async function toggleTask(taskId: string, done: boolean) {
-  const { error } = await supabase.from("hub_task").update({ done }).eq("id", taskId);
-  if (error) throw error;
-}
-
-// loga histórico
-export async function addStageHistory(leadId: string, from_stage: Stage | null, to_stage: Stage) {
-  const { error } = await supabase
-    .from("hub_stage_history")
-    .insert({ lead_id: leadId, from_stage, to_stage, note: "Kanban move" });
-  if (error) throw error;
-}
-
-// move e persiste
-export async function moveLeadStage(leadId: string, from: Stage, to: Stage) {
-  if (from === to) return;
-  const { error } = await supabase.from("hub_lead").update({ stage: to }).eq("id", leadId);
-  if (error) throw error;
-  await addStageHistory(leadId, from, to);
-}
-
-export async function createTaskQuick(leadId: string, title: string) {
-    const { error } = await supabase.from("hub_task").insert({ lead_id: leadId, title, done: false });
-    if (error) throw error;
-  }
-  
-
-export async function updateLead(
-    id: string,
-    patch: Partial<Pick<HubLead, "name" | "stage" | "notes" | "service" | "amount" | "deadline" | "phone" | "email">>
-  ) {
-    const { error } = await supabase.from("hub_lead").update(patch).eq("id", id);
-    if (error) throw error;
+  if (error) {
+    console.error(error);
+    return null;
   }
 
-  export async function reorderLeadsInStage(stage: Stage, orderedIds: string[]) {
-    // salva índices 0..n em order_index
-    for (let i = 0; i < orderedIds.length; i++) {
-      const id = orderedIds[i];
-      const { error } = await supabase.from("hub_lead").update({ order_index: i }).eq("id", id);
-      if (error) throw error;
+  return data as HubTask[];
+}
+
+export async function createTask(task: Omit<HubTask, "id" | "created_at">): Promise<HubTask | null> {
+  const { data, error } = await supabase
+    .from("hub_task")
+    .insert({
+      ...task,
+      created_at: new Date().toISOString(),
+    })
+    .select()
+    .single();
+
+  if (error) {
+    console.error(error);
+    return null;
+  }
+
+  return data as HubTask;
+}
+
+export async function updateTask(id: string, updates: Partial<HubTask>): Promise<HubTask | null> {
+  const { data, error } = await supabase
+    .from("hub_task")
+    .update(updates)
+    .eq("id", id)
+    .select()
+    .single();
+
+  if (error) {
+    console.error(error);
+    return null;
+  }
+
+  return data as HubTask;
+}
+
+export async function deleteTask(id: string): Promise<boolean> {
+  const { error } = await supabase.from("hub_task").delete().eq("id", id);
+  return !error;
+}
+
+// === Finance ===
+
+export async function fetchFinanceEntries(leadId: string): Promise<HubFinanceEntry[] | null> {
+  const { data, error } = await supabase
+    .from("hub_finance_entry")
+    .select("*")
+    .eq("lead_id", leadId)
+    .order("due_date", { ascending: true });
+
+  if (error) {
+    console.error(error);
+    return null;
+  }
+
+  return data as HubFinanceEntry[];
+}
+
+export async function createFinanceEntry(
+  entry: Omit<HubFinanceEntry, "id" | "created_at" | "updated_at">
+): Promise<HubFinanceEntry | null> {
+  const { data, error } = await supabase
+    .from("hub_finance_entry")
+    .insert({
+      ...entry,
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+    })
+    .select()
+    .single();
+
+  if (error) {
+    console.error(error);
+    return null;
+  }
+
+  return data as HubFinanceEntry;
+}
+
+export async function updateFinanceEntry(
+  id: string,
+  updates: Partial<Omit<HubFinanceEntry, "id" | "created_at">>
+): Promise<HubFinanceEntry | null> {
+  const { data, error } = await supabase
+    .from("hub_finance_entry")
+    .update({
+      ...updates,
+      updated_at: new Date().toISOString(),
+    })
+    .eq("id", id)
+    .select()
+    .single();
+
+  if (error) {
+    console.error(error);
+    return null;
+  }
+
+  return data as HubFinanceEntry;
+}
+
+export async function deleteFinanceEntry(id: string): Promise<boolean> {
+  const { error } = await supabase.from("hub_finance_entry").delete().eq("id", id);
+  return !error;
+}
+
+// === Settings ===
+
+export async function fetchSettings(): Promise<HubSettings | null> {
+  const { data, error } = await supabase.from("hub_settings").select("*").limit(1).single();
+  if (error && error.code !== "PGRST116") {
+    // PGRST116 = row not found, which is fine
+    console.error(error);
+  }
+  return data as HubSettings | null;
+}
+
+export async function updateSettings(updates: Partial<HubSettings>): Promise<HubSettings | null> {
+  // Try to update existing row
+  let { data, error } = await supabase
+    .from("hub_settings")
+    .update({
+      ...updates,
+      updated_at: new Date().toISOString(),
+    })
+    .neq("id", "00000000-0000-0000-0000-000000000000") // dummy condition to trigger update
+    .limit(1);
+
+  // If no rows were updated, insert a new one
+  if (!data || (data as any[]).length === 0) {
+    const { data: newData, error: insertError } = await supabase
+      .from("hub_settings")
+      .insert({
+        id: "00000000-0000-0000-0000-000000000000", // fixed ID
+        ...updates,
+        updated_at: new Date().toISOString(),
+      })
+      .select()
+      .single();
+
+    if (insertError) {
+      console.error(insertError);
+      return null;
     }
+
+    return newData as HubSettings;
   }
-  
+
+  return data[0] as HubSettings;
+}
+
+// === KPIs ===
+
+export async function fetchKpis(): Promise<Kpis | null> {
+  const res = await fetch(`${API_BASE}/kpis`);
+  if (!res.ok) {
+    console.error("Failed to fetch KPIs", await res.text());
+    return null;
+  }
+  return res.json();
+}
