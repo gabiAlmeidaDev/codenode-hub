@@ -1,7 +1,7 @@
 import React from "react";
 import { useState } from "react";
 import type { HubLead, Stage } from "@/lib/types";
-import { updateLead, moveLeadStage, createTaskQuick } from "@/api/hub";
+import { updateLead } from "@/api/hub";
 import StageSelect from "./stage-select";
 import { formatBRL, parseBRLtoCents, shortDate } from "@/utils";
 import { useToast } from "@/components/common/toast";
@@ -18,7 +18,7 @@ export default function LeadQuickEdit({
   const { show } = useToast();
 
   const [name, setName] = useState<string>(lead.name);
-  const [stage, setStage] = useState<Stage>(lead.stage);
+  const [stage, setStage] = useState<Stage>(lead.stage as Stage); // TODO: Atualizar para usar column_id
   const [amount, setAmount] = useState<string>(formatBRL(lead.amount));
   const [deadline, setDeadline] = useState<string>(lead.deadline ? lead.deadline.slice(0, 10) : "");
   const [taskTitle, setTaskTitle] = useState("");
@@ -37,16 +37,18 @@ export default function LeadQuickEdit({
       await updateLead(lead.id, patch);
 
       // 2) Se mudou estágio, persiste e sinaliza mudança
+      // TODO: Atualizar para usar column_id
       let stageChanged: { from: Stage; to: Stage } | undefined;
       if (stage !== lead.stage) {
-        await moveLeadStage(lead.id, lead.stage, stage);
+        // await moveLeadStage(lead.id, lead.stage, stage);
         stageChanged = { from: lead.stage, to: stage };
         patch.stage = stage;
       }
 
       // 3) Task rápida opcional
+      // TODO: Implementar criação de tarefa rápida
       if (taskTitle.trim()) {
-        await createTaskQuick(lead.id, taskTitle.trim());
+        // await createTaskQuick(lead.id, taskTitle.trim());
       }
 
       onUpdated(patch, stageChanged);

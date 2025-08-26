@@ -16,6 +16,7 @@ export interface HubLead {
   created_at: string; // ISO string
   updated_at: string; // ISO string
   order_index?: number; // índice para ordenação no pipeline
+  column_id: string | null; // ID da coluna personalizada
 }
 
 export interface HubTask {
@@ -62,4 +63,13 @@ export interface Kpis {
   conversion30d: number;
   inProduction: number;
   pendingTasks: number;
+}
+
+export interface HubColumn {
+  id: string;
+  name: string;
+  color: string;
+  order_index: number;
+  created_at: string; // ISO string
+  updated_at: string; // ISO string
 }

@@ -1,64 +1,85 @@
 // src/pages/pipeline/pipeline-page.tsx
-import React from "react";
-import { useEffect, useMemo, useRef, useState } from "react";
+import React, { useState } from "react";
+import { useEffect, useMemo, useRef } from "react";
 import {
   DndContext,
   PointerSensor,
   useSensor,
   useSensors,
-  closestCorners,
   DragStartEvent,
   DragOverEvent,
   DragEndEvent,
-  useDroppable,
 } from "@dnd-kit/core";
-import {
-  SortableContext,
-  useSortable,
-  verticalListSortingStrategy,
-  arrayMove,
-} from "@dnd-kit/sortable";
+import { useDroppable } from "@dnd-kit/core";
+import { useSortable } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 import { Plus } from "lucide-react";
 
 import LeadCard from "@/components/pipeline/lead-card";
 import CreateCardModal from "@/components/pipeline/create-card-modal";
-import type { HubLead, Stage } from "@/lib/types";
-import { fetchLeads, moveLeadStage, reorderLeadsInStage } from "@/api/hub";
+import ColumnModal from "@/components/pipeline/column-modal";
+import ColumnHeader from "@/components/pipeline/column-header";
+import type { HubLead, HubColumn } from "@/lib/types";
+import { fetchLeads, moveLeadColumn, reorderLeadsInColumn } from "@/api/hub";
 import { supabase } from "@/lib/supabase";
-
-// ---- colunas fixas e rótulos
-const STAGES: Stage[] = [
-  "prospect",
-  "qualificado",
-  "proposta",
-  "producao",
-  "testes",
-  "entregue",
-];
-
-const PRETTY: Record<Stage, string> = {
-  prospect: "Prospect",
-  qualificado: "Qualificado",
-  proposta: "Proposta",
-  producao: "Produção",
-  testes: "Testes",
-  entregue: "Entregue",
-};
+import { useColumns } from "@/hooks/useColumns";
 
 export default function PipelinePage() {
   const [all, setAll] = useState<HubLead[]>([]);
   const [loading, setLoading] = useState(true);
   const [showCreateModal, setShowCreateModal] = useState(false);
+  const [showCreateColumnModal, setShowCreateColumnModal] = useState(false);
+  
+  // Hook para gerenciar colunas
+  const { columns, loading: columnsLoading, addColumn, editColumn, removeColumn, reorder } = useColumns();
+  
+  // Função para abrir o modal de criação de card
+  const openCreateModal = () => {
+    setShowCreateModal(true);
+  };
+  
+  // Função para fechar o modal de criação de card
+  const closeCreateModal = () => {
+    setShowCreateModal(false);
+  };
 
-  // DnD sensores (um só e confiável)
+  const createNewLead = async (name: string, columnId: string) => {
+    try {
+      // Garantir que o nome não esteja vazio
+      const validName = name.trim() || "Cliente sem nome";
+      
+      const { data, error } = await supabase
+        .from("hub_lead")
+        .insert({
+          name: validName,
+          column_id: columnId,
+          service: "landing", // Valor padrão para o campo service
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString()
+        })
+        .select()
+        .single();
+
+      if (error) throw error;
+
+      // Atualiza o estado local
+      setAll(prev => [...prev, data]);
+      
+      // Fecha o modal
+      closeCreateModal();
+    } catch (err) {
+      console.error("Erro ao criar lead:", err);
+    }
+  };
+
+  // DnD sensores
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 5 } })
   );
 
   // para saber de onde saiu
   const activeIdRef = useRef<string | null>(null);
-  const fromStageRef = useRef<Stage | null>(null);
+  const fromColumnRef = useRef<string | null>(null);
 
   useEffect(() => {
     (async () => {
@@ -72,58 +93,43 @@ export default function PipelinePage() {
     })();
   }, []);
 
-  // Agrupa por stage e ordena por order_index (se houver), fallback created_at
-  const byStage = useMemo(() => {
-    const map: Record<Stage, HubLead[]> = {
-      prospect: [],
-      qualificado: [],
-      proposta: [],
-      producao: [],
-      testes: [],
-      entregue: [],
-    };
-    for (const l of all) map[l.stage].push(l);
-    for (const s of STAGES) {
-      map[s].sort((a, b) => {
+  // Agrupa por column_id e ordena por order_index (se houver), fallback created_at
+  const byColumn = useMemo(() => {
+    const map: Record<string, HubLead[]> = {};
+    
+    // Inicializar com todas as colunas
+    columns.forEach(col => {
+      map[col.id] = [];
+    });
+    
+    // Preencher com leads
+    for (const l of all) {
+      const columnId = l.column_id || 'uncategorized';
+      if (!map[columnId]) {
+        map[columnId] = [];
+      }
+      map[columnId].push(l);
+    }
+    
+    // Ordenar leads em cada coluna
+    Object.keys(map).forEach(columnId => {
+      map[columnId].sort((a, b) => {
         const ao = a.order_index ?? 0;
         const bo = b.order_index ?? 0;
         if (ao !== bo) return ao - bo;
         return new Date(a.created_at).getTime() - new Date(b.created_at).getTime();
       });
-    }
+    });
+    
     return map;
-  }, [all]);
-
-  async function createNewLead(name: string, stage: Stage = "prospect") {
-    try {
-      const { data, error } = await supabase
-        .from("hub_lead")
-        .insert({
-          name,
-          stage,
-          created_at: new Date().toISOString(),
-          updated_at: new Date().toISOString()
-        })
-        .select()
-        .single();
-
-      if (error) throw error;
-
-      // Atualiza o estado local
-      setAll(prev => [...prev, data]);
-      
-      // Fecha o modal
-      setShowCreateModal(false);
-    } catch (err) {
-      console.error("Erro ao criar lead:", err);
-    }
-  }
+  }, [all, columns]);
 
   function handleDragStart(e: DragStartEvent) {
     const id = String(e.active.id);
     activeIdRef.current = id;
     const item = all.find((l) => l.id === id);
-    fromStageRef.current = item?.stage ?? null;
+    fromColumnRef.current = item?.column_id ?? null;
+    console.log("Drag start:", { id, item });
   }
 
   function handleDragOver(e: DragOverEvent) {
@@ -134,23 +140,26 @@ export default function PipelinePage() {
     if (!overId) return;
 
     const overKey = String(overId);
+    console.log("Drag over:", { activeId, overId, overKey });
 
     // destino é coluna?
     if (overKey.startsWith("col:")) {
-      const to = overKey.replace("col:", "") as Stage;
+      const to = overKey.replace("col:", "");
       const item = all.find((l) => l.id === activeId);
-      if (!item || item.stage === to) return;
+      if (!item || item.column_id === to) return;
+
+      console.log("Movendo card para coluna:", { from: item.column_id, to });
 
       // UI otimista: move para o topo da coluna destino
       setAll((prev) => {
         const src = [...prev];
         const idx = src.findIndex((l) => l.id === activeId);
         if (idx === -1) return prev;
-        const moved = { ...src[idx], stage: to, order_index: 0 };
+        const moved = { ...src[idx], column_id: to, order_index: 0 };
         src.splice(idx, 1);
 
         // insere antes do primeiro item dessa coluna ou no final se estiver vazia
-        const firstIndexOfCol = src.findIndex((l) => l.stage === to);
+        const firstIndexOfCol = src.findIndex((l) => l.column_id === to);
         const insertAt = firstIndexOfCol === -1 ? src.length : firstIndexOfCol;
         src.splice(insertAt, 0, moved);
         return src;
@@ -163,8 +172,8 @@ export default function PipelinePage() {
     const active = all.find((l) => l.id === activeId);
     if (!target || !active) return;
 
-    const from = active.stage;
-    const to = target.stage;
+    const from = active.column_id;
+    const to = target.column_id;
 
     // se mudou de coluna: mover e inserir antes do alvo
     if (from !== to) {
@@ -174,57 +183,97 @@ export default function PipelinePage() {
         const iOver = src.findIndex((l) => l.id === target.id);
         if (iFrom === -1 || iOver === -1) return prev;
 
-        const moved = { ...src[iFrom], stage: to, order_index: 0 };
+        const moved = { ...src[iFrom], column_id: to, order_index: target.order_index - 0.5 };
         src.splice(iFrom, 1);
         // inserir no índice global do alvo (antes dele)
         const insertAt = src.findIndex((l) => l.id === target.id);
         src.splice(insertAt === -1 ? src.length : insertAt, 0, moved);
+        
+        // Atualizar order_index da coluna destino
+        const colItems = src.filter((l) => l.column_id === to);
+        colItems.sort((a, b) => (a.order_index ?? 0) - (b.order_index ?? 0));
+        colItems.forEach((item, index) => {
+          const idx = src.findIndex((l) => l.id === item.id);
+          if (idx !== -1) {
+            src[idx] = { ...src[idx], order_index: index };
+          }
+        });
+        
         return src;
       });
       return;
     }
 
     // mesma coluna: reordenar
-    const ids = byStage[from].map((x) => x.id);
-    const oldIndex = ids.indexOf(activeId);
-    const newIndex = ids.indexOf(target.id);
-    if (oldIndex !== -1 && newIndex !== -1 && oldIndex !== newIndex) {
-      const orderedIds = arrayMove(ids, oldIndex, newIndex);
-      setAll((prev) => {
-        const copy = [...prev];
-        // reordena somente os da coluna
-        const inCol = copy.filter((l) => l.stage === from);
-        const dict = Object.fromEntries(inCol.map((l) => [l.id, l]));
-        const reordered = orderedIds.map((id, i) => {
-          const obj = { ...(dict[id] as HubLead) };
-          obj.order_index = i;
-          return obj;
+    if (from === to) {
+      const ids = byColumn[from].map((x) => x.id);
+      const oldIndex = ids.indexOf(activeId);
+      const newIndex = ids.indexOf(target.id);
+      if (oldIndex !== -1 && newIndex !== -1 && oldIndex !== newIndex) {
+        setAll((prev) => {
+          const src = [...prev];
+          const activeItem = src.find((l) => l.id === activeId);
+          const targetItem = src.find((l) => l.id === target.id);
+          
+          if (!activeItem || !targetItem) return prev;
+          
+          // Remover o item ativo
+          const activeIndex = src.findIndex((l) => l.id === activeId);
+          src.splice(activeIndex, 1);
+          
+          // Inserir antes do target
+          const targetIndex = src.findIndex((l) => l.id === target.id);
+          src.splice(targetIndex, 0, {
+            ...activeItem,
+            order_index: targetItem.order_index - 0.5 // Valor temporário
+          });
+          
+          // Atualizar os order_index
+          const sortedColumn = src
+            .filter((l) => l.column_id === from)
+            .sort((a, b) => (a.order_index ?? 0) - (b.order_index ?? 0));
+          
+          sortedColumn.forEach((lead, index) => {
+            const idx = src.findIndex((l) => l.id === lead.id);
+            if (idx !== -1) {
+              src[idx] = { ...src[idx], order_index: index };
+            }
+          });
+          
+          return src;
         });
-        const others = copy.filter((l) => l.stage !== from);
-        return [...others, ...reordered];
-      });
+      }
     }
   }
 
-  async function handleDragEnd(_: DragEndEvent) {
+  async function handleDragEnd() {
     const activeId = activeIdRef.current;
-    const from = fromStageRef.current;
+    const from = fromColumnRef.current;
     activeIdRef.current = null;
-    fromStageRef.current = null;
+    fromColumnRef.current = null;
     if (!activeId) return;
+
+    console.log("Drag end:", { activeId, from });
 
     // Depois do estado final, persistir:
     try {
       const item = all.find((l) => l.id === activeId);
       if (!item) return;
 
-      const to = item.stage;
+      const to = item.column_id;
       if (from && from !== to) {
-        await moveLeadStage(activeId, from, to);
+        console.log("Movendo lead no banco:", { activeId, from, to });
+        // Atualizar para usar column_id em vez de stage
+        const success = await moveLeadColumn(activeId, from, to);
+        
+        if (!success) throw new Error("Failed to move lead column");
       }
-      // Reordenar IDs no estágio atual
-      const ids = byStage[to].map((l) => l.id);
-      await reorderLeadsInStage(to, ids);
+      // Reordenar IDs na coluna atual
+      const ids = all
+        .filter((l) => l.column_id === to)
+        .sort((a, b) => (a.order_index ?? 0) - (b.order_index ?? 0))
+        .map((l) => l.id);
+      await reorderLeadsInColumn(to, ids);
     } catch (err) {
       console.error(err);
       // rollback simples: refetch
@@ -240,38 +289,49 @@ export default function PipelinePage() {
     <div className="space-y-4">
       <div className="flex items-center justify-between">
         <div className="text-xl font-semibold">Pipeline</div>
-        <button
-          onClick={() => setShowCreateModal(true)}
-          className="btn-primary px-4 py-2 text-sm rounded-xl flex items-center gap-2"
-        >
-          <Plus size={16} />
-          Novo Card
-        </button>
+        <div className="flex gap-2">
+          <button
+            onClick={() => setShowCreateColumnModal(true)}
+            className="btn-secondary px-4 py-2 text-sm rounded-xl flex items-center gap-2"
+          >
+            <Plus size={16} />
+            Nova Coluna
+          </button>
+          <button
+            onClick={openCreateModal}
+            className="btn-primary px-4 py-2 text-sm rounded-xl flex items-center gap-2"
+          >
+            <Plus size={16} />
+            Novo Card
+          </button>
+        </div>
       </div>
 
-      {loading ? (
+      {(loading || columnsLoading) ? (
         <div className="card p-4">Carregando…</div>
       ) : (
         <DndContext
           sensors={sensors}
-          collisionDetection={closestCorners}
           onDragStart={handleDragStart}
           onDragOver={handleDragOver}
           onDragEnd={handleDragEnd}
         >
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-4">
-            {STAGES.map((col) => (
-              <Column key={col} id={col} title={PRETTY[col]} count={byStage[col].length}>
-                <SortableContext
-                  items={byStage[col].map((l) => l.id)}
-                  strategy={verticalListSortingStrategy}
-                >
-                  {byStage[col].map((lead) => (
-                    <Item key={lead.id} id={lead.id}>
+            {columns.map((col) => (
+              <Column 
+                key={col.id} 
+                column={col} 
+                count={byColumn[col.id]?.length || 0}
+                onEdit={editColumn}
+                onDelete={removeColumn}
+              >
+                <div className="space-y-3">
+                  {byColumn[col.id]?.map((lead) => (
+                    <SortableItem key={lead.id} id={lead.id}>
                       <LeadCard
                         lead={lead}
-                        stage={col}
-                        onStageChanged={(id, from, to) => {
+                        stage={col.id} // Usar column_id como stage por enquanto
+                        onStageChanged={async (id, from, to) => {
                           // permite mudar via <select> do card
                           if (from === to) return;
                           // otimista
@@ -279,30 +339,22 @@ export default function PipelinePage() {
                             const idx = prev.findIndex((l) => l.id === id);
                             if (idx === -1) return prev;
                             const copy = [...prev];
-                            copy[idx] = { ...copy[idx], stage: to, order_index: 0 };
+                            copy[idx] = { ...copy[idx], column_id: to };
                             return copy;
                           });
                           // persiste
-                          moveLeadStage(id, from, to)
-                            .then(async () => {
-                              const ids = byStage[to].map((l) => l.id);
-                              await reorderLeadsInStage(to, ids);
-                            })
-                            .catch(async () => {
-                              // rollback
-                              const rows = await fetchLeads();
-                              setAll(rows ?? []);
-                            });
+                          const success = await moveLeadColumn(id, from, to);
+                          
+                          if (!success) {
+                            // rollback
+                            const rows = await fetchLeads();
+                            setAll(rows ?? []);
+                          }
                         }}
                       />
-                    </Item>
+                    </SortableItem>
                   ))}
-                  {byStage[col].length === 0 && (
-                    <div className="h-[120px] flex items-center justify-center text-[hsl(215,12%,65%)] text-sm rounded-2xl border border-dashed border-[hsl(220,12%,18%)]">
-                      Arraste um card aqui
-                    </div>
-                  )}
-                </SortableContext>
+                </div>
               </Column>
             ))}
           </div>
@@ -312,9 +364,20 @@ export default function PipelinePage() {
       {/* Modal de criação de card */}
       {showCreateModal && (
         <CreateCardModal
-          stages={STAGES}
+          columns={columns}
           onCreate={createNewLead}
-          onClose={() => setShowCreateModal(false)}
+          onClose={closeCreateModal}
+        />
+      )}
+
+      {/* Modal de criação de coluna */}
+      {showCreateColumnModal && (
+        <ColumnModal
+          onSave={(column) => {
+            addColumn(column);
+            setShowCreateColumnModal(false);
+          }}
+          onClose={() => setShowCreateColumnModal(false)}
         />
       )}
     </div>
@@ -326,29 +389,23 @@ export default function PipelinePage() {
    ======================= */
 
 function Column({
-  id,
-  title,
+  column,
   count,
   children,
+  onEdit,
+  onDelete
 }: {
-  id: Stage;
-  title: string;
+  column: HubColumn;
   count: number;
   children: React.ReactNode;
+  onEdit: (id: string, updates: Partial<Omit<HubColumn, "id" | "created_at" | "updated_at">>) => void;
+  onDelete: (id: string) => void;
 }) {
-  const { setNodeRef, isOver } = useDroppable({ id: `col:${id}` });
+  const { setNodeRef, isOver } = useDroppable({ id: `col:${column.id}` });
   
-  // Função para obter a cor do header baseada no estágio
-  const getHeaderColor = (stage: Stage) => {
-    switch (stage) {
-      case "prospect": return "text-blue-400";
-      case "qualificado": return "text-indigo-400";
-      case "proposta": return "text-purple-400";
-      case "producao": return "text-yellow-400";
-      case "testes": return "text-orange-400";
-      case "entregue": return "text-green-400";
-      default: return "text-[hsl(215,12%,80%)]";
-    }
+  // Função para obter a cor do header baseada na cor da coluna
+  const getHeaderColorStyle = () => {
+    return { color: column.color };
   };
 
   return (
@@ -358,16 +415,24 @@ function Column({
         isOver ? "ring-1 ring-violet-500/40" : ""
       }`}
     >
-      <div className={`px-3 py-2 text-base font-medium flex items-center justify-between ${getHeaderColor(id)}`}>
-        <span className="capitalize">{title}</span>
-        <span className="opacity-70 text-xs">({count})</span>
+      <ColumnHeader 
+        column={column} 
+        onEdit={onEdit} 
+        onDelete={onDelete} 
+      />
+      <div className="mt-2 space-y-3 min-h-[120px]">
+        {children}
+        {count === 0 && (
+          <div className="h-[120px] flex items-center justify-center text-[hsl(215,12%,65%)] text-sm rounded-2xl border border-dashed border-[hsl(220,12%,18%)]">
+            Arraste um card aqui
+          </div>
+        )}
       </div>
-      <div className="mt-2 space-y-3 min-h-[120px] flex flex-col justify-start">{children}</div>
     </div>
   );
 }
 
-function Item({ id, children }: { id: string; children: React.ReactNode }) {
+function SortableItem({ id, children }: { id: string; children: React.ReactNode }) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } =
     useSortable({ id });
 
@@ -376,6 +441,7 @@ function Item({ id, children }: { id: string; children: React.ReactNode }) {
     transition,
     opacity: isDragging ? 0.6 : 1,
     zIndex: isDragging ? 10 : 0,
+    cursor: 'grab',
   };
 
   return (
@@ -384,5 +450,3 @@ function Item({ id, children }: { id: string; children: React.ReactNode }) {
     </div>
   );
 }
-
-

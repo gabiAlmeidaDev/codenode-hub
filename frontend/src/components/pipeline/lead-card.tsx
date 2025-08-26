@@ -1,9 +1,8 @@
 import React, { useState } from "react";
-import type { HubLead, Stage, Service } from "@/lib/types";
+import type { HubLead, HubColumn, Service } from "@/lib/types";
 import { formatBRL, shortDate } from "@/utils";
 import { Plus, X } from "lucide-react";
 
-const STAGES: Stage[] = ["prospect","qualificado","proposta","producao","testes","entregue"];
 const SERVICES: Service[] = ["landing", "agente", "combo"];
 
 interface CardData {
@@ -12,12 +11,13 @@ interface CardData {
   phone: string | null;
   email: string | null;
   service: Service;
-  stage: Stage;
+  // Removido stage pois agora usamos column_id
   amount: number | null;
   deadline: string | null;
   notes: string | null;
   createdAt: string;
   updatedAt: string;
+  column_id: string | null;
 }
 
 interface Task {
@@ -30,12 +30,12 @@ interface Task {
 
 export default function LeadCard({
   lead,
-  stage,
-  onStageChanged,
+  stage, // TODO: Remover este parâmetro e usar column_id
+  onStageChanged, // TODO: Atualizar para usar column_id
 }: {
   lead: HubLead;
-  stage: Stage;
-  onStageChanged: (id: string, from: Stage, to: Stage) => void;
+  stage: string; // TODO: Atualizar tipo para usar column_id
+  onStageChanged: (id: string, from: string, to: string) => void; // TODO: Atualizar para usar column_id
 }) {
   // Estado local para os dados do card
   const [cardData, setCardData] = useState<CardData>({
@@ -44,12 +44,13 @@ export default function LeadCard({
     phone: lead.phone,
     email: lead.email,
     service: lead.service,
-    stage: lead.stage,
+    // Removido stage pois agora usamos column_id
     amount: lead.amount,
     deadline: lead.deadline,
     notes: lead.notes,
     createdAt: lead.created_at,
-    updatedAt: lead.updated_at
+    updatedAt: lead.updated_at,
+    column_id: lead.column_id
   });
   
   // Estado para as tarefas
@@ -64,7 +65,9 @@ export default function LeadCard({
   const [newTaskTag, setNewTaskTag] = useState("");
 
   // Função para obter a cor do badge baseada no estágio
-  const getStageColor = (stage: Stage) => {
+  // TODO: Atualizar para usar a cor da coluna
+  const getStageColor = (stage: string) => {
+    // Por enquanto, manter as cores originais
     switch (stage) {
       case "prospect": return "bg-blue-500/20 text-blue-400";
       case "qualificado": return "bg-indigo-500/20 text-indigo-400";
@@ -129,8 +132,9 @@ export default function LeadCard({
     setIsEditing(false);
     
     // Se a etapa mudou, notifica o componente pai para mover o card
-    if (cardData.stage !== lead.stage) {
-      onStageChanged(lead.id, lead.stage, cardData.stage);
+    // TODO: Atualizar para usar column_id
+    if (cardData.column_id !== lead.column_id) {
+      onStageChanged(lead.id, lead.column_id || "", cardData.column_id || "");
     }
   };
 
@@ -160,14 +164,18 @@ export default function LeadCard({
             value={stage}
             onChange={(e) => {
               e.stopPropagation();
-              const to = e.target.value as Stage;
+              const to = e.target.value;
               if (to !== stage) onStageChanged(lead.id, stage, to);
             }}
             onClick={(e) => e.stopPropagation()}
           >
-            {STAGES.map((s) => (
-              <option key={s} value={s} className="bg-[hsl(222,37%,10%)] capitalize">{s}</option>
-            ))}
+            {/* TODO: Atualizar para mostrar as colunas dinâmicas */}
+            <option value="prospect" className="bg-[hsl(222,37%,10%)] capitalize">prospect</option>
+            <option value="qualificado" className="bg-[hsl(222,37%,10%)] capitalize">qualificado</option>
+            <option value="proposta" className="bg-[hsl(222,37%,10%)] capitalize">proposta</option>
+            <option value="producao" className="bg-[hsl(222,37%,10%)] capitalize">producao</option>
+            <option value="testes" className="bg-[hsl(222,37%,10%)] capitalize">testes</option>
+            <option value="entregue" className="bg-[hsl(222,37%,10%)] capitalize">entregue</option>
           </select>
         </div>
 
@@ -369,20 +377,24 @@ export default function LeadCard({
 
                 <div>
                   <label className="text-sm text-[hsl(215,12%,65%)] mb-1 block">
-                    Etapa
+                    Coluna
                   </label>
                   <select
                     className="w-full bg-[hsl(222,37%,14%)] border border-[hsl(220,12%,18%)] rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-violet-500"
-                    value={cardData.stage}
+                    value={cardData.column_id || ""}
                     onChange={(e) => {
                       e.stopPropagation();
-                      setCardData({...cardData, stage: e.target.value as Stage});
+                      setCardData({...cardData, column_id: e.target.value || null});
                     }}
                     onClick={(e) => e.stopPropagation()}
                   >
-                    {STAGES.map((s) => (
-                      <option key={s} value={s} className="capitalize">{s}</option>
-                    ))}
+                    {/* TODO: Atualizar para mostrar as colunas dinâmicas */}
+                    <option value="prospect" className="capitalize">prospect</option>
+                    <option value="qualificado" className="capitalize">qualificado</option>
+                    <option value="proposta" className="capitalize">proposta</option>
+                    <option value="producao" className="capitalize">producao</option>
+                    <option value="testes" className="capitalize">testes</option>
+                    <option value="entregue" className="capitalize">entregue</option>
                   </select>
                 </div>
               </div>
